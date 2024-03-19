@@ -1,0 +1,40 @@
+#results {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    margin-top: 10px;
+  }
+  
+  .result-item {
+    border-radius: 4px;
+    background-color: #f8f8f8;
+    padding: 15px;
+    margin-bottom: 10px;
+  }
+  
+  .result-item.active {
+    background-color: #eaeaea;
+  }
+  
+  .label {
+    font-weight: bold;
+  }
+  
+  .placeholder {
+    margin-top: 5px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 5px;
+  }
+  
+  .comment-form {
+    margin-top: 10px;
+  }
+  
+  .comment-input {
+    width: 100%;
+    padding: 5px;
+  }
+  

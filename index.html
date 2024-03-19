@@ -1,0 +1,208 @@
+
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>гео-туристическое приложение</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://api-maps.yandex.ru/2.1/?lang=ru_ru&apikey=fc2ca79a-00cb-4d95-bceb-19568901bfe2" type="text/javascript"></script>
+</head>
+<body>
+    <header>
+        <h1>Путеводитель по городу</h1>
+        <p>Исследуйте город с помощью нашего путеводителя. Найдите интересные места, достопримечательности и многое другое.</p>
+    </header>
+  <div id="map" style="width: 100%; height: 400px;"></div>
+
+  
+  <form id="search-form">
+    <input type="text" id="search-query" placeholder="введите запрос">
+    <button type="submit">искать</button>
+  </form>
+  
+  <div id="results" style="width: 100%; height: 400px;"></div>
+  <script type="text/javascript">
+    if (typeof Blob === 'undefined' || !navigator.geolocation) {
+        alert("Ваш браузер не поддерживает HTML5. Обновите браузер для полноценного использования приложения.");
+      } else {
+
+    var map, route;
+    function initMap() {
+
+        map = new ymaps.Map("map", {
+        center: [55.751574, 37.573856], 
+        zoom: 12 
+      }); 
+ 
+      var searchControl = new ymaps.control.SearchControl({
+        options: {
+          useMapBounds: true, 
+          strictBounds: true, 
+          noPlacemark: true,  
+          provider: 'yandex#search' 
+        }
+      }); 
+
+      searchControl.events.add('resultselect', function (e) {
+        var index = e.get('index');
+        var result = searchControl.getResult(index);
+        if (result && result._geometry && result._geometry._coordinates) {
+            map.geoObjects.add(new ymaps.Placemark(result._geometry._coordinates));
+        }
+      });
+      
+      map.controls.add(searchControl);
+
+      var userCoords;
+
+      if ("geolocation" in navigator) {
+ 
+        navigator.geolocation.getCurrentPosition(function(position) {
+          userCoords = [position.coords.latitude, position.coords.longitude];
+
+
+          var userPlacemark = new ymaps.Placemark(userCoords, {
+            hintContent: "ваше местоположение"
+          });
+          map.geoObjects.add(userPlacemark);
+
+          map.setCenter(userCoords);
+
+
+
+          localStorage.setItem("userCoords", JSON.stringify(userCoords));
+        });
+      }
+
+      if (localStorage.getItem("userCoords")) {
+        userCoords = JSON.parse(localStorage.getItem("userCoords"));
+
+        var savedPlacemark = new ymaps.Placemark(userCoords, {
+          hintContent: "ваши сохраненные координаты"
+        });
+
+        map.geoObjects.add(savedPlacemark);
+        map.setCenter(userCoords);
+
+      }
+
+      document.getElementById('search-form').addEventListener('submit', function(event) {
+        event.preventDefault(); 
+        var searchQuery = document.getElementById('search-query').value; 
+        
+        searchControl.search(searchQuery).then(function() {
+          console.log('результаты поиска организаций получены');
+        }); 
+        
+        searchNearbyPlaces(searchQuery, userCoords);
+      });
+
+      function searchNearbyPlaces(searchQuery, userCoords) {
+        ymaps.geocode(searchQuery, {
+          results: 10,
+          boundedBy: [[userCoords[0] - 0.1, userCoords[1] - 0.1], [userCoords[0] + 0.1, userCoords[1] + 0.1]]
+  }).then(function(res) {
+          var radius = 0.1; 
+          var resultsBlock = document.getElementById('results');
+          resultsBlock.innerHTML = '';
+          res.geoObjects.each(function(geoObject) {
+            console.log(geoObject.properties); 
+            var objectCoords = geoObject.geometry.getCoordinates();
+            var distance = ymaps.coordSystem.geo.getDistance(userCoords, objectCoords);
+            console.log('Расстояние: ' + distance);
+            /*if (distance < radius * 100 )*/ {
+              var placemark = new ymaps.Placemark(objectCoords);
+              map.geoObjects.add(placemark);
+              var resultItem = document.createElement('div');
+              resultItem.className = 'result-item';
+              
+              var titleTag = document.createElement('p');
+              titleTag.className = 'label';
+              titleTag.textContent = 'Место:';
+              resultItem.appendChild(titleTag);
+                          
+              var title = document.createElement('div');
+              title.className = 'title';
+              title.textContent = geoObject.properties.get('name', '');
+              resultItem.appendChild(title);
+            
+              var descTag = document.createElement('p');
+              descTag.className = 'label';
+              descTag.textContent = 'Описание:';
+              resultItem.appendChild(descTag);
+            
+              var description = document.createElement('div');
+              description.className = 'description';
+              description.textContent = geoObject.properties.get('description', '');
+              resultItem.appendChild(description);
+            
+              var commentTag = document.createElement('p');
+              commentTag.className = 'label';
+              commentTag.textContent = 'Комментарии:';
+              resultItem.appendChild(commentTag);
+            
+              var placeHolder = document.createElement('div');
+              placeHolder.className = 'placeholder';
+              resultItem.appendChild(placeHolder);
+
+              var commentForm = document.createElement('form');
+              commentForm.className = 'comment-form';
+              resultItem.appendChild(commentForm);
+              
+              var commentInput = document.createElement('input');
+              commentInput.type = 'text';
+              commentInput.className = 'comment-input';
+              commentForm.appendChild(commentInput);
+              
+              var commentSubmit = document.createElement('input');
+              commentSubmit.type = 'submit';
+              commentSubmit.value = 'Submit';
+              commentForm.appendChild(commentSubmit);
+
+              commentForm.addEventListener('submit', function(event) {
+                event.preventDefault();  // отменяет стандартное действие формы (перезагрузку страницы)
+                var newComment = document.createElement('div');
+                newComment.textContent = commentInput.value;
+                placeHolder.appendChild(newComment);
+                commentInput.value = '';  // очищает поле ввода
+            });
+            
+              
+              
+              resultsBlock.appendChild(resultItem);
+              
+
+              placemark.events.add('click', function() {
+                var activeItem = resultsBlock.querySelector('.active');
+                if (activeItem) {
+                activeItem.classList.remove('active');
+              }
+              resultItem.classList.add('active');
+            });
+            resultItem.addEventListener('click', function() {
+              map.setCenter(placemark.geometry.getCoordinates(), 12);
+              if (route) { 
+                map.geoObjects.remove(route); 
+              }
+              var endCoords = placemark.geometry.getCoordinates(); 
+              ymaps.route([userCoords, endCoords]).then(
+               function(newRoute) {
+                 route = newRoute; 
+                 map.geoObjects.add(route); 
+               },
+               function(error) {
+                 alert('Невозможно построить маршрут: ' + error.message);
+               }
+              );
+              map.setCenter(endCoords, 12);
+            });
+          }
+        });
+      });
+    }
+    }
+}
+    ymaps.ready(initMap);
+  </script>
+</body>
+</html>
